@@ -79,10 +79,10 @@ module SuaveUtil =
           // RecyclableMemoryStream can be set to throw on ToArray, so we cannot use it for Suave as its API requires a byte array output
           use output = new MemoryStream ()
 
-          let isRemotingProxy = ctx.request.headers |> List.exists (fun x -> fst x = "x-remoting-proxy")
+          let isRemotingProxy = ctx.request.headers |> Seq.exists (fun x -> fst x = "x-remoting-proxy")
           let isContentBinaryEncoded = 
               ctx.request.headers
-              |> List.tryFind (fun (key, _) -> key.ToLowerInvariant() = "content-type")
+              |> Seq.tryFind (fun (key, _) -> key.ToLowerInvariant() = "content-type")
               |> Option.map (fun (_, value) -> value)
               |> function 
                 | Some "application/octet-stream" -> true 
