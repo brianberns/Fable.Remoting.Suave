@@ -19,9 +19,13 @@ type ParsingArgumentsError = { ParsingArgumentsError: string }
 
 /// Route information that is propagated to error handler when exceptions are thrown
 type RouteInfo<'ctx> = {
+    /// The full path of the request
     path: string
+    /// The last part of the path of the request
     methodName: string
+    /// The HttpContext of the request
     httpContext: 'ctx
+    /// The text content of the request, if any
     requestBodyText: string option
 }
 
@@ -47,16 +51,15 @@ type SerializationType =
     | Json
     | MessagePack
 
-type internal IShapeFSharpAsync =
+type internal IShapeFSharpAsyncOrTask  =
     abstract Element: TypeShape
 
-type internal ShapeFSharpAsync<'T> () =
-    interface IShapeFSharpAsync with
+type internal ShapeFSharpAsyncOrTask<'T> () =
+    interface IShapeFSharpAsyncOrTask  with
         member _.Element = shapeof<'T> :> _
 
-type InvocationPropsInt = {
-    Arguments: Choice<byte[], JToken list>
-    ArgumentCount: int
+type internal InvocationPropsInt = {
+    Arguments: Choice<byte[], JToken> list
     IsProxyHeaderPresent: bool
     Output: Stream
 }
@@ -67,7 +70,7 @@ type InvocationProps<'impl> = {
     ImplementationBuilder: unit -> 'impl
     EndpointName: string
     HttpVerb: string
-    IsContentBinaryEncoded: bool
+    InputContentType: string
     IsProxyHeaderPresent: bool
 }
 

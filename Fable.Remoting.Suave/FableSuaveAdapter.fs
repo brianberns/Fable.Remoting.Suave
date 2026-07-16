@@ -72,7 +72,7 @@ module SuaveUtil =
     }
 
   let buildFromImplementation<'impl> (implBuilder: HttpContext -> 'impl) (options: RemotingOptions<HttpContext, 'impl>) =
-      let proxy = makeApiProxy options
+      let proxy = makeApiProxy options >> Async.AwaitTask
       
       fun (ctx: HttpContext) -> async {
           use inp = new MemoryStream (ctx.request.rawForm)
@@ -80,25 +80,24 @@ module SuaveUtil =
           use output = new MemoryStream ()
 
           let isRemotingProxy = ctx.request.headers |> Seq.exists (fun x -> fst x = "x-remoting-proxy")
-          let isContentBinaryEncoded = 
+          let contentType = 
               ctx.request.headers
-              |> Seq.tryFind (fun (key, _) -> key.ToLowerInvariant() = "content-type")
+              |> Seq.tryFind (fun (key, _) -> key.Equals ("content-type", System.StringComparison.OrdinalIgnoreCase))
               |> Option.map (fun (_, value) -> value)
-              |> function 
-                | Some "application/octet-stream" -> true 
-                | otherwise -> false
-          let props = { ImplementationBuilder = (fun () -> implBuilder ctx); EndpointName = ctx.request.path; Input = inp; HttpVerb = ctx.request.rawMethod.ToUpper ();
-              IsContentBinaryEncoded = isContentBinaryEncoded; IsProxyHeaderPresent = isRemotingProxy; Output = output }
+              |> Option.defaultValue ""
+
+          let props = { ImplementationBuilder = (fun () -> implBuilder ctx); EndpointName = ctx.request.path; Input = inp; HttpVerb = ctx.request.rawMethod;
+              InputContentType = contentType; IsProxyHeaderPresent = isRemotingProxy; Output = output }
 
           match! proxy props with
           | Success isBinaryOutput ->
               let mimeType =
                   if isBinaryOutput && isRemotingProxy then
                       "application/octet-stream"
-                  elif options.ResponseSerialization = SerializationType.Json then
+                  elif options.ResponseSerialization.IsJson then
                       "application/json; charset=utf-8"
                   else
-                      "application/msgpack"
+                      "application/vnd.msgpack"
 
               return! setBinaryResponseBody (output.ToArray ()) 200 mimeType ctx
           | Exception (e, functionName, requestBodyText) ->
